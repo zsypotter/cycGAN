@@ -131,6 +131,14 @@ class BaseModel(ABC):
             if isinstance(name, str):
                 visual_ret[name] = getattr(self, name)
         return visual_ret
+    
+    def get_current_visuals_tb(self):
+        vis_A = torch.cat((self.real_A, self.fake_B, self.rec_A), 2)
+        vis_B = torch.cat((self.real_B, self.fake_A, self.rec_B), 2)
+        vis_A = (vis_A + 1) / 2
+        vis_B = (vis_B + 1) / 2
+        return vis_A, vis_B
+
 
     def get_current_losses(self):
         """Return traning losses / errors. train.py will print out these errors on console, and save them to a file"""

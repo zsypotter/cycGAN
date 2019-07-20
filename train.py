@@ -27,6 +27,8 @@ from util.visualizer import Visualizer
 import torchvision.transforms as transforms
 import torch
 import torch.utils.data
+from tensorboardX import SummaryWriter
+import os
 
 if __name__ == '__main__':
     opt = TrainOptions().parse()   # get training options
@@ -39,13 +41,16 @@ if __name__ == '__main__':
         transforms.Normalize(mean=(.5,.5,.5),std=(.5,.5,.5))
         ])
     trainset = keypoint_customData('.', data_transforms)
-    trainloader = torch.utils.data.DataLoader(trainset, batch_size=1, shuffle=True, num_workers=2)
+    trainloader = torch.utils.data.DataLoader(trainset, batch_size=6, shuffle=True, num_workers=2)
 
     model = create_model(opt)      # create a model given opt.model and other options
     model.setup(opt)               # regular setup: load and print networks; create schedulers
     visualizer = Visualizer(opt)   # create a visualizer that display/save images and plots
     total_iters = 0                # the total number of training iterations
 
+    log_path = os.path.join(opt.checkpoints_dir, opt.name, time.asctime(time.localtime(time.time())))
+    writer = SummaryWriter(log_path)
+    iters_num = len(trainloader)
     for epoch in range(opt.epoch_count, opt.niter + opt.niter_decay + 1):    # outer loop for different epochs; we save the model by <epoch_count>, <epoch_count>+<save_latest_freq>
         epoch_start_time = time.time()  # timer for entire epoch
         iter_data_time = time.time()    # timer for data loading per iteration
@@ -61,10 +66,13 @@ if __name__ == '__main__':
             model.set_input(data)         # unpack data from dataset and apply preprocessing
             model.optimize_parameters()   # calculate loss functions, get gradients, update network weights
 
-            '''if total_iters % opt.display_freq == 0:   # display images on visdom and save images to a HTML file
+            if total_iters % opt.display_freq == 0:   # display images on visdom and save images to a HTML file
                 save_result = total_iters % opt.update_html_freq == 0
                 model.compute_visuals()
-                visualizer.display_current_results(model.get_current_visuals(), epoch, save_result)'''
+                #visualizer.display_current_results(model.get_current_visuals(), epoch, save_result)
+                vis_A, vis_B = model.get_current_visuals_tb()
+                writer.add_image("vis_A", vis_A, i + epoch * iters_num)
+                writer.add_image("vis_B", vis_B, i + epoch * iters_num)
 
             if total_iters % opt.print_freq == 0:    # print training losses and save logging information to the disk
                 losses = model.get_current_losses()
